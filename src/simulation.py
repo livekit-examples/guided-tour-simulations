@@ -34,7 +34,7 @@ def fake_calendar(sim: SimulationContext, *, timezone: str) -> FakeCalendar:
     """Seed a FakeCalendar with the scenario's ``available_slots``, pinned to the
     scenario's clock so its absolute dates stay in the future where intended.
 
-    A scenario that doesn't set ``available_slots`` (phone.yaml, or a scenario
+    A scenario that doesn't set ``available_slots`` (such as a scenario
     freshly derived from a session) gets a few openings every weekday for the
     next two weeks instead, from a fixed seed so every run sees the same
     calendar. An explicit empty list means no availability at all.
