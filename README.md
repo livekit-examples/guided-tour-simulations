@@ -1,18 +1,27 @@
-<a href="https://livekit.io/">
-  <img src="./.github/assets/livekit-mark.png" alt="LiveKit logo" width="100" height="100">
+<a href="https://livekit.com/events/guided-tour-simulations">
+  <img src="./.github/assets/banner.png" alt="Guided Tour: LiveKit Simulations">
 </a>
+
+<p align="center">
+  <a href="https://livekit.com/events/guided-tour-simulations"><b>Event page</b></a> ·
+  <a href="https://youtu.be/ycSxhQTKX7Y"><b>Walkthrough video</b></a> ·
+  <a href="https://docs.livekit.io/testing/simulations/"><b>Simulations docs</b></a> ·
+  <a href="https://livekit.com/products/agent-simulations"><b>Agent Simulations</b></a>
+</p>
 
 # Front Desk: Agent Simulations guided tour
 
 This repository goes with the **Agent Simulations** guided tour. It holds the agent from the tour's demo, the scenarios it runs, and the CI that keeps those scenarios passing. Clone it to follow along, or to start testing your own agent the same way.
 
-Front Desk is a voice agent that books office visits. A caller asks for a time, Front Desk checks the calendar, offers a few openings, collects an email address, and books the visit. It's built with [LiveKit Agents for Python](https://github.com/livekit/agents) and tested with [Agent Simulations](https://docs.livekit.io/testing/simulations/): a simulated caller with a persona and a goal talks to the real agent, and a judge grades whether the call reached the right outcome.
+Front Desk is a voice agent that books office visits. A caller asks for a time, Front Desk checks the calendar, offers a few openings, collects an email address, and books the visit. It's built with [LiveKit Agents for Python](https://github.com/livekit/agents) and tested with [Agent Simulations](https://docs.livekit.io/testing/simulations/): a simulated caller talks to the real agent, and a judge grades whether the call reached the right outcome.
 
-```
- simulated caller  ──▶  Front Desk (your real code)  ──▶  judge
- persona + goal         same prompt and tools,            transcript vs. expectations,
-                        calendar seeded per scenario      plus the calendar's end state
-```
+<p align="center">
+  <img src="./.github/assets/results.png" alt="Two simulation runs of the appointment scheduling scenarios: 8 of 11 succeeded in one, 4 of 11 in the other" width="720">
+</p>
+
+| 01 · Simulated caller | 02 · Your agent | 03 · Judge |
+| --- | --- | --- |
+| Plays the caller. Give it a persona and a goal. | Runs your real code: the same prompt and tools, with data seeded for each scenario. | Grades the outcome against your expectations, plus the calendar's end state. |
 
 ## What's in here
 
@@ -119,6 +128,10 @@ This uploads the agent's source to LiveKit Cloud so the generator can read it, a
 
 ### 3. Run the committed set
 
+<p align="center">
+  <img src="./.github/assets/scenarios.png" alt="Simulation results: Scenario 1 and Scenario 2 passed, Scenario 3 failed, with the agent's first line and its time to first token" width="640">
+</p>
+
 ```console
 lk agent simulate text --scenarios scenarios.yaml
 ```
@@ -204,6 +217,12 @@ Front Desk began as [`examples/frontdesk`](https://github.com/livekit/agents/tre
 - **The LiveKit Playground card is removed.**
 
 ## Learn more
+
+Watch a full walkthrough of Agent Simulations:
+
+<a href="https://youtu.be/ycSxhQTKX7Y">
+  <img src="./.github/assets/walkthrough.jpg" alt="Watch the Agent Simulations walkthrough video" width="480">
+</a>
 
 - [Agent Simulations](https://docs.livekit.io/testing/simulations/)
 - [Run simulations in CI](https://docs.livekit.io/testing/simulations/ci/)
