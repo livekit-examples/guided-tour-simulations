@@ -32,7 +32,7 @@ Step 3: Sign in to LiveKit Cloud and load your project's keys into `.env.local`
 
 ```shell
 lk cloud auth
-lk app env -w -d .env.local
+lk app env --write --destination .env.local
 ```
 
 Step 4: Talk to the agent in your terminal
@@ -54,7 +54,7 @@ The CLI starts the agent locally, runs each scenario on LiveKit Cloud, and print
 To generate new scenarios from the agent's source code instead:
 
 ```shell
-lk agent simulate text -n 10
+lk agent simulate text --num-simulations 10
 ```
 
 To run the same scenarios through the full speech pipeline:
