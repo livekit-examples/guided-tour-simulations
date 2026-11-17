@@ -4,7 +4,7 @@
 
 # Front Desk: Agent Simulations guided tour
 
-This repository goes with the **Agent Simulations** guided tour. It holds the agent the tour demos, the scenarios it runs, and the CI that keeps those scenarios passing.
+This repository goes with the **Agent Simulations** guided tour. It holds the agent from the tour's demo, the scenarios it runs, and the CI that keeps those scenarios passing. Clone it to follow along, or to start testing your own agent the same way.
 
 Front Desk is a voice agent that books office visits. A caller asks for a time, Front Desk checks the calendar, offers a few openings, collects an email address, and books the visit. It's built with [LiveKit Agents for Python](https://github.com/livekit/agents) and tested with [Agent Simulations](https://docs.livekit.io/testing/simulations/): a simulated caller with a persona and a goal talks to the real agent, and a judge grades whether the call reached the right outcome.
 
@@ -23,7 +23,6 @@ Front Desk is a voice agent that books office visits. A caller asks for a time, 
 | [`src/simulation.py`](src/simulation.py) | Everything simulation-specific: seeding the calendar from a scenario, and the tool mocks |
 | [`scenarios.yaml`](scenarios.yaml) | The committed scenario set: 10 callers, from cooperative to stubborn |
 | [`phone.yaml`](phone.yaml) | Two happy-path calls for a phone simulation against the deployed agent |
-| [`demo/`](demo/) | Material for the live demo: a patch that stages the bad call, and a backup of its scenario |
 | [`tests/test_agent.py`](tests/test_agent.py) | Turn-level unit tests |
 | [`.github/workflows/`](.github/workflows/) | Text simulations on every pull request, audio simulations nightly, and lint |
 
@@ -43,7 +42,7 @@ lk cloud auth
 lk app env --write --destination .env.local
 ```
 
-[`livekit.toml`](livekit.toml) points the CLI at the guided tour's LiveKit Cloud project. If you're using your own project, delete it. `lk agent create` writes a new one when you deploy.
+`lk agent simulate` runs against the CLI's default project, not the one in `.env.local`. Check it with `lk project list`, and switch with `lk project set-default <name>` or pass `--project <name>`.
 
 Front Desk uses [LiveKit Inference](https://docs.livekit.io/agents/models/inference/) for every model (Deepgram Nova 3, Gemma 4 31B, Inworld TTS 2), so it needs no other API keys. Set `CAL_API_KEY` to book into a real cal.com calendar. Without it, Front Desk uses an in-memory calendar with a few random openings each weekday.
 
@@ -134,16 +133,9 @@ lk agent simulate text --scenarios scenarios.yaml --samples 3 --concurrency 5
 
 The most valuable scenarios come from real calls. In the dashboard, open the call under **Sessions** and click **Turn into a test**. The dashboard derives a simulated caller and pass criteria from the call, and you download them as a scenario file.
 
-To reproduce the tour's bad call, stage it with the patch in [`demo/`](demo/). It swaps one line of Front Desk's instructions for an eager "find a way to fit them in" rule, the kind of edit that looks harmless in review:
+A downloaded scenario describes one call. Before you commit it, widen it to the class of calls it represents and sharpen its expectation into the rule you want enforced. If the agent's behavior depends on data, add `userdata` so the run sees the same calendar the caller did, and an `expected_booking` so the end state is graded too. Run it, fix the agent until it passes, and add it to `scenarios.yaml` so the bug can't come back.
 
-```console
-git apply demo/staged-bug.patch
-lk agent simulate text --scenarios demo/bad-call.yaml    # fails: Front Desk invents a morning slot
-git checkout src/agent.py
-lk agent simulate text --scenarios demo/bad-call.yaml    # passes
-```
-
-[`demo/bad-call.yaml`](demo/bad-call.yaml) is that derived scenario with `available_slots` and `expected_booking` added, so the calendar's end state is graded too. The same failure, a caller pushing back until the agent caves, is covered permanently by "Requested time unavailable" in `scenarios.yaml`.
+The tour's bad call is a caller who pushes back on a full Monday morning until the agent invents a slot that doesn't exist. "Requested time unavailable, accepts an alternative" in `scenarios.yaml` covers exactly that.
 
 ### 5. Audio and phone simulations
 

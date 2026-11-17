@@ -8,7 +8,6 @@ Front Desk, the voice agent behind the LiveKit Agent Simulations guided tour. Re
 
 - `src/agent.py` is the agent; `src/simulation.py` holds everything simulation-specific (calendar seeding, tool mocks). Keep simulation logic out of the agent's tools.
 - `scenarios.yaml` must stay green: CI runs it with `--samples 3` on every pull request. Add a scenario for any behavior change before changing the agent.
-- `demo/staged-bug.patch` deliberately breaks the agent for the live demo. Never apply it to a commit.
 
 ## Tooling
 
