@@ -3,15 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-starter-python"
+name = "front-desk"
 version = "1.0.0"
-description = "Simple voice AI assistant built with LiveKit Agents for Python"
+description = "Front Desk: the voice agent behind the LiveKit Agent Simulations guided tour"
 requires-python = ">=3.10, <3.15"
 
 dependencies = [
     "livekit-agents~=1.8",
     "livekit-plugins-ai-coustics~=0.3",
+    "aiohttp",
     "python-dotenv",
+    # Slim container images ship no system tz database; zoneinfo needs this.
+    "tzdata",
 ]
 
 [dependency-groups]
@@ -34,6 +37,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]

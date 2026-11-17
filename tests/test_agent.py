@@ -1,50 +1,158 @@
-# Agent behavior is covered by the simulations in scenarios.yaml, which run full
-# conversations against the agent on LiveKit Cloud (see README.md). The eval
-# below is kept as an example of the in-process testing framework
-# (https://docs.livekit.io/agents/start/testing/) for turn-level checks that
-# don't need a live session. Uncomment it and run `uv run pytest` to use it.
-#
-# import textwrap
-#
-# import pytest
-# from livekit.agents import AgentSession, inference, llm
-#
-# from agent import Assistant
-#
-#
-# def _judge_llm() -> llm.LLM:
-#     return inference.LLM(model="openai/gpt-4.1-mini")
-#
-#
-# @pytest.mark.asyncio
-# async def test_offers_assistance() -> None:
-#     """Evaluation of the agent's friendly nature."""
-#     async with (
-#         _judge_llm() as judge_llm,
-#         AgentSession() as session,
-#     ):
-#         await session.start(Assistant())
-#
-#         # Run an agent turn following the user's greeting
-#         result = await session.run(user_input="Hello")
-#
-#         # Evaluate the agent's response for friendliness
-#         await (
-#             result.expect.next_event()
-#             .is_message(role="assistant")
-#             .judge(
-#                 judge_llm,
-#                 intent=textwrap.dedent(
-#                     """\
-#                     Greets the user in a friendly manner.
-#
-#                     Optional context that may or may not be included:
-#                     - Offer of assistance with any request the user may have
-#                     - Other small talk or chit chat is acceptable, so long as it is friendly and not too intrusive
-#                     """
-#                 ),
-#             )
-#         )
-#
-#         # Ensures there are no function calls or other unexpected events
-#         result.expect.no_more_events()
+"""Turn-level tests for Front Desk.
+
+These pin individual turns (the right tool call, the right handoff) in seconds.
+Whole conversations are covered by the simulations in scenarios.yaml.
+Run with `uv run pytest`.
+"""
+
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+import pytest
+from livekit.agents import AgentSession, beta, inference, llm
+
+from agent import FrontDeskAgent, Userdata
+from calendar_api import AvailableSlot, FakeCalendar
+
+TIMEZONE = "UTC"
+
+
+def _llm_model() -> llm.LLM:
+    return inference.LLM(
+        model="openai/gpt-4.1",
+        extra_kwargs={"parallel_tool_calls": False, "temperature": 0.45},
+    )
+
+
+@pytest.mark.asyncio
+async def test_slot_scheduling() -> None:
+    tz = ZoneInfo(TIMEZONE)
+    today = datetime.now(tz).date()
+
+    # fmt: off
+    slots = [
+        AvailableSlot(start_time=datetime.combine(today, time(9, 0), tzinfo=tz), duration_min=30),
+        AvailableSlot(start_time=datetime.combine(today, time(9, 30), tzinfo=tz), duration_min=30),
+        AvailableSlot(start_time=datetime.combine(today, time(10, 0), tzinfo=tz), duration_min=30),
+
+        AvailableSlot(start_time=datetime.combine(today + timedelta(days=1), time(14, 0), tzinfo=tz), duration_min=30),
+        AvailableSlot(start_time=datetime.combine(today + timedelta(days=1), time(14, 30), tzinfo=tz), duration_min=30),
+        AvailableSlot(start_time=datetime.combine(today + timedelta(days=1), time(15, 0), tzinfo=tz), duration_min=30),
+
+        AvailableSlot(start_time=datetime.combine(today + timedelta(days=2), time(11, 0), tzinfo=tz), duration_min=30),
+        AvailableSlot(start_time=datetime.combine(today + timedelta(days=2), time(11, 30), tzinfo=tz), duration_min=30),
+    ]
+    # fmt: on
+
+    userdata = Userdata(cal=FakeCalendar(timezone=TIMEZONE, slots=slots))
+
+    async with _llm_model() as llm, AgentSession(llm=llm, userdata=userdata) as sess:
+        await sess.start(FrontDeskAgent(timezone=TIMEZONE))
+        result = await sess.run(user_input="Can I get an appointment tomorrow?")
+        result.expect.skip_next_event_if(type="message", role="assistant")
+        # the agent may first check the current date to resolve "tomorrow"
+        if result.expect.skip_next_event_if(
+            type="function_call", name="get_current_time"
+        ):
+            result.expect.next_event(type="function_call_output")
+            result.expect.skip_next_event_if(type="message", role="assistant")
+        result.expect.next_event().is_function_call(name="list_available_slots")
+        result.expect.next_event().is_function_call_output()
+
+        tomorrow = today + timedelta(days=1)
+        expected_tomorrow_slots = [
+            slot for slot in slots if slot.start_time.date() == tomorrow
+        ]
+        expected_times_text = ", ".join(
+            slot.start_time.strftime("%-I:%M %p") for slot in expected_tomorrow_slots
+        )
+
+        await (
+            result.expect.next_event()
+            .is_message(role="assistant")
+            .judge(
+                llm,
+                intent=(
+                    "must suggest one or more available appointment time slots for tomorrow "
+                    f"({today + timedelta(days=1):%B %-d, %Y}). For reference, today is {today:%B %-d, %Y}"
+                    f"Must only suggest times that are present in the calendar slots for tomorrow, "
+                    f"which are: {expected_times_text}."
+                ),
+            )
+        )
+
+        result = await sess.run(user_input="2 in the afternoon sounds good")
+        result.expect.skip_next_event_if(type="message", role="assistant")
+
+        slot_id = next(
+            s.unique_hash
+            for s in slots
+            if s.start_time
+            == datetime.combine(today + timedelta(days=1), time(14, 0), tzinfo=tz)
+        )
+
+        result.expect.next_event().is_function_call(
+            name="schedule_appointment", arguments={"slot_id": slot_id}
+        )
+        result.expect.next_event().is_agent_handoff(
+            new_agent_type=beta.workflows.GetEmailTask
+        )
+        await (
+            result.expect.next_event()
+            .is_message(role="assistant")
+            .judge(llm, intent="must ask for the email address")
+        )
+
+        result = await sess.run(
+            user_input="My email address is jordan@example.com",
+            input_modality="audio",  # simulate audio input
+        )
+        result.expect.next_event().is_function_call(
+            name="update_email_address", arguments={"email": "jordan@example.com"}
+        )
+        result.expect.next_event().is_function_call_output()
+        await (
+            result.expect.next_event()
+            .is_message(role="assistant")
+            .judge(llm, intent="must ask for the email address confirmation/validation")
+        )
+
+        result = await sess.run(user_input="Yes, it's valid")
+        result.expect.next_event().is_function_call(name="confirm_email_address")
+        result.expect.next_event().is_function_call_output()
+        result.expect.next_event().is_agent_handoff(new_agent_type=FrontDeskAgent)
+
+        result.expect.next_event().is_function_call_output()  # output of the schedule_appointment
+        await (
+            result.expect.next_event()
+            .is_message(role="assistant")
+            .judge(llm, intent="must confirm the appointment was scheduled")
+        )
+
+
+@pytest.mark.asyncio
+async def test_no_availability() -> None:
+    userdata = Userdata(cal=FakeCalendar(timezone=TIMEZONE, slots=[]))  # no slots
+
+    async with _llm_model() as llm, AgentSession(llm=llm, userdata=userdata) as sess:
+        await sess.start(FrontDeskAgent(timezone=TIMEZONE))
+        result = await sess.run(
+            user_input="Hello, can I need an appointment, what's your availability for the next 2 weeks?"
+        )
+        result.expect.skip_next_event_if(type="message", role="assistant")
+        # the agent may first check the current date before listing availability
+        if result.expect.skip_next_event_if(
+            type="function_call", name="get_current_time"
+        ):
+            result.expect.next_event(type="function_call_output")
+            result.expect.skip_next_event_if(type="message", role="assistant")
+        result.expect.next_event().is_function_call(name="list_available_slots")
+        result.expect.next_event().is_function_call_output()
+        await (
+            result.expect.next_event()
+            .is_message(role="assistant")
+            .judge(
+                llm,
+                intent="must say that there is no availability, especially in the requested time range. optionally, it can offer to look at other times",
+            )
+        )

@@ -1,0 +1,13 @@
+--- a/src/agent.py
++++ b/src/agent.py
+@@ -119,8 +119,8 @@
+                 "use natural phrases like 'in the morning' or 'in the evening', and don't mention "
+                 "the year unless it differs from the current one. When listing several times in the "
+                 "same window, group them ('in the evening at 4, 5, or 6') instead of repeating the "
+-                "time-of-day qualifier on each slot. If a chosen time is no longer available, let "
+-                "them know gently and offer the next options."
++                "time-of-day qualifier on each slot. Callers hate hearing no: if they push back "
++                "on the times you offer, find a way to fit them in at the time they asked for."
+             )
+         )
+ 

@@ -1,0 +1,42 @@
+# Backup for demo step 2 ("When you see a bad call, make it a test").
+#
+# This is the scenario the dashboard's "Turn into a test" derives from the staged
+# bad session (the caller who pushes back until Front Desk invents a 9:30 slot),
+# with `available_slots` and `expected_booking` added so the run is graded on the
+# calendar's end state as well as the transcript. Use it if the freshly
+# downloaded file doesn't fail reliably against the staged agent:
+#
+#   git apply demo/staged-bug.patch
+#   lk agent simulate text --scenarios demo/bad-call.yaml
+#
+# Against the fixed agent (git checkout src/agent.py) it passes.
+id: SCNG_AyLGASHgBYDp
+name: Bad call - Monday morning pushback
+scenarios:
+  - id: SCN_3L6XdBp4wkVw
+    label: Caller pushes back on a full Monday morning
+    instructions: |-
+      You are Priya Nair (email priya.nair@example.com), a nurse coming off a
+      night shift. You are tired and a little short, but reasonable.
+
+      Goals:
+      - Open with: "Hi, can I come in Monday morning? Like 9?"
+      - When the agent says the morning is full, push back: "Nothing at all in
+        the morning?" If it still has nothing, push once more: "Can't you just
+        squeeze me in somewhere before noon?"
+      - If the agent offers you any morning time on Monday, take it.
+      - Otherwise accept Monday at 2 in the afternoon.
+      - Give your email address when asked and finish with a confirmed booking.
+    agent_expectations: The agent offers only times that are actually on the
+      calendar. When the caller pushes back on a full Monday morning, it says
+      plainly that nothing is open that morning, never invents or agrees to an
+      unlisted morning time, and books Monday at 2 PM once the caller accepts.
+    tags:
+      feature: adversarial
+      source: production-session
+    userdata:
+      available_slots:
+        - "2026-06-15T14:00:00"
+        - "2026-06-15T16:30:00"
+        - "2026-06-16T10:00:00"
+      expected_booking: "2026-06-15T14:00:00"

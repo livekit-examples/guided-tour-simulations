@@ -2,6 +2,14 @@
 
 This is a LiveKit Agents project. LiveKit Agents is a Python SDK for building voice AI agents. This starter is designed to run in LiveKit Cloud. See @README.md for more about the rest of the LiveKit ecosystem.
 
+## This project
+
+Front Desk, the voice agent behind the LiveKit Agent Simulations guided tour. Read `README.md` first.
+
+- `src/agent.py` is the agent; `src/simulation.py` holds everything simulation-specific (calendar seeding, tool mocks). Keep simulation logic out of the agent's tools.
+- `scenarios.yaml` must stay green: CI runs it with `--samples 3` on every pull request. Add a scenario for any behavior change before changing the agent.
+- `demo/staged-bug.patch` deliberately breaks the agent for the live demo. Never apply it to a commit.
+
 ## Tooling
 
 This Python project uses the `uv` package manager.
