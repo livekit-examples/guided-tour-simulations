@@ -1,12 +1,17 @@
-# Runs the scenarios in scenarios.yaml against your agent on LiveKit Cloud.
-# Simulations spend real inference, so this runs on merges to main and on demand
-# rather than on every pull request push. Run
-# `lk agent simulate text --scenarios scenarios.yaml` locally while iterating.
-name: Simulations
+# Text simulations on every pull request and every merge to main.
+#
+# Text mode drops STT and TTS, so a run checks Front Desk's LLM, tools and
+# conversation logic in a couple of minutes, and its LLM requests yield to live
+# traffic on the project. Each scenario runs 3 times and must pass 2 of 3, so one
+# unlucky sample doesn't block a merge but a real regression does.
+#
+# Needs LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET repository secrets.
+name: Simulations (text)
 
 on:
+  pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -21,26 +26,19 @@ jobs:
       LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
 
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v1
-      with:
-        version: "latest"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.14"
+      - name: Install dependencies
+        run: uv sync --locked
 
-    - name: Install dependencies
-      run: UV_GIT_LFS=1 uv sync
+      - name: Download model files
+        run: uv run src/agent.py download-files
 
-    - name: Download model files
-      run: uv run python src/agent.py download-files
+      - name: Install the LiveKit CLI
+        run: curl -sSL https://get.livekit.io/cli | bash
 
-    - name: Install LiveKit CLI
-      run: curl -sSL https://get.livekit.io/cli | bash
-
-    - name: Run simulations
-      run: lk agent simulate text --scenarios scenarios.yaml
+      - name: Run simulations
+        run: lk agent simulate text --scenarios scenarios.yaml --samples 3 --concurrency 5

@@ -2,160 +2,215 @@
   <img src="./.github/assets/livekit-mark.png" alt="LiveKit logo" width="100" height="100">
 </a>
 
-# LiveKit Agents starter for Python
+# Front Desk: Agent Simulations guided tour
 
-A starter project for building voice AI apps with [LiveKit Agents for Python](https://github.com/livekit/agents) and [LiveKit Cloud](https://cloud.livekit.io/).
+This repository goes with the **Agent Simulations** guided tour. It holds the agent from the tour's demo, the scenarios it runs, and the CI that keeps those scenarios passing. Clone it to follow along, or to start testing your own agent the same way.
 
-The starter includes:
+Front Desk is a voice agent that books office visits. A caller asks for a time, Front Desk checks the calendar, offers a few openings, collects an email address, and books the visit. It's built with [LiveKit Agents for Python](https://github.com/livekit/agents) and tested with [Agent Simulations](https://docs.livekit.io/testing/simulations/): a simulated caller with a persona and a goal talks to the real agent, and a judge grades whether the call reached the right outcome.
 
-- A simple [voice AI assistant](https://docs.livekit.io/agents/start/voice-ai/) to extend and customize.
-- A voice pipeline built on [LiveKit Inference](https://docs.livekit.io/agents/models/inference/), which gives you access to [models](https://docs.livekit.io/agents/models/) from top labs with no extra configuration:
-  - The default LLM is Gemma 4 31B, an open-weight model [hosted by LiveKit](https://docs.livekit.io/agents/models/llm/livekit/) and tuned for voice AI.
-  - The default TTS is [Fish Audio S2.1 Pro](https://docs.livekit.io/agents/models/tts/fishaudio/), an expressive and cost-effective voice.
-  - More than 50 other models are available from OpenAI, Cartesia, Deepgram, and other providers.
-  - [Realtime models](https://docs.livekit.io/agents/models/realtime/) such as OpenAI GPT-Live. Many other models are available through the [plugin ecosystem](https://docs.livekit.io/agents/models/#plugins).
-- [Expressive mode](https://docs.livekit.io/agents/models/tts/expressive/), on by default, so your agent's voice carries emotion and pacing that fit the conversation.
-- [Keyterms](https://docs.livekit.io/agents/models/stt/keyterms/), on by default, so speech recognition gets your names, brands, and jargon right, including names it picks up during the conversation, like a caller's.
-- [LiveKit Turn Detector](https://docs.livekit.io/agents/logic/turns/turn-detector/), which knows when the user has finished speaking, in 14 languages.
-- [Adaptive interruption handling](https://docs.livekit.io/agents/logic/turns/adaptive-interruption-handling/), which tells a real interruption from an "uh-huh" or background noise, so your agent doesn't stop talking when it shouldn't.
-- [Background voice cancellation](https://docs.livekit.io/transport/media/noise-cancellation/).
-- Session transcripts, traces, and recordings from LiveKit [Agent Observability](https://docs.livekit.io/testing/observability/).
-- [Simulations](https://docs.livekit.io/testing/simulations/) that test full conversations with your agent, run in CI on every merge to `main`.
-- A `Dockerfile` for [deploying to LiveKit Cloud](https://docs.livekit.io/deploy/agents/).
-
-The starter works with any [custom web or mobile frontend](https://docs.livekit.io/frontends/) or with [telephony](https://docs.livekit.io/telephony/).
-
-## Using coding agents
-
-This project works with coding agents like [Claude Code](https://claude.com/product/claude-code), [Cursor](https://www.cursor.com/), and [Codex](https://openai.com/codex/).
-
-LiveKit offers both a CLI and an [MCP server](https://docs.livekit.io/reference/developer-tools/docs-mcp/) for browsing and searching its documentation. Search returns short excerpts, so fetch the full page to read the details:
-
-```console
-lk docs search "testing my agent"
-lk docs get-page /testing/unit-tests
+```
+ simulated caller  ──▶  Front Desk (your real code)  ──▶  judge
+ persona + goal         same prompt and tools,            transcript vs. expectations,
+                        calendar seeded per scenario      plus the calendar's end state
 ```
 
-The project also includes an [`AGENTS.md`](AGENTS.md) file, so your coding agent follows LiveKit's best practices for workflows, handoffs, and testing, and tries its changes with the [agent debugger](https://docs.livekit.io/testing/debugger/).
+## What's in here
 
-For more guidance at each stage of the work, from building and debugging to testing and deploying, install LiveKit's [agent skills](https://docs.livekit.io/intro/coding-agents/#agent-skills). The CLI installs them for the coding agents on your machine and adds the Docs MCP server to their config. `lk agent init` offers to do this when it creates your project, or you can run it yourself:
+| Path | What it is |
+| --- | --- |
+| [`src/agent.py`](src/agent.py) | Front Desk: instructions, tools, session setup, and the end-of-simulation check |
+| [`src/calendar_api.py`](src/calendar_api.py) | The calendar: an in-memory fake, or [cal.com](https://cal.com) when `CAL_API_KEY` is set |
+| [`src/simulation.py`](src/simulation.py) | Everything simulation-specific: seeding the calendar from a scenario, and the tool mocks |
+| [`scenarios.yaml`](scenarios.yaml) | The committed scenario set: 10 callers, from cooperative to stubborn |
+| [`phone.yaml`](phone.yaml) | Two happy-path calls for a phone simulation against the deployed agent |
+| [`tests/test_agent.py`](tests/test_agent.py) | Turn-level unit tests |
+| [`.github/workflows/`](.github/workflows/) | Text simulations on every pull request, audio simulations nightly, and lint |
 
-```console
-lk skills install
-```
+## Setup
 
-Run `lk skills update` to get the latest skills, and commit `skills-lock.json` along with them. See the [coding agents guide](https://docs.livekit.io/intro/coding-agents/) for more details.
+You need:
 
-## Dev setup
+- The [LiveKit CLI](https://docs.livekit.io/intro/basics/cli/), v2.19 or later (v2.19.3 or later for phone simulations). Check with `lk --version`.
+- [uv](https://docs.astral.sh/uv/).
+- A [LiveKit Cloud](https://cloud.livekit.io/) project with Agent Observability turned on.
 
-Install the [LiveKit CLI](https://docs.livekit.io/intro/basics/cli/), version 2.18.8 or later:
-
-- **macOS:** `brew install livekit-cli`
-- **Linux:** `curl -sSL https://get.livekit.io/cli | bash`
-- **Windows:** `winget install LiveKit.LiveKitCLI`
-
-Check your version with `lk --version`. To update an existing install, see [Update the CLI](https://docs.livekit.io/reference/developer-tools/livekit-cli/#updates).
-
-Then create a project from this template. The CLI clones the template and configures your environment:
-
-```console
-lk cloud auth
-lk agent init my-agent --template agent-starter-python
-```
-
-<details>
-<summary>Set up the project manually</summary>
-
-Clone the repository and install dependencies into a virtual environment with [uv](https://docs.astral.sh/uv/):
+Install dependencies and write your project's credentials to `.env.local`:
 
 ```console
-git clone https://github.com/livekit-examples/agent-starter-python.git
-cd agent-starter-python
 uv sync
-```
-
-Sign up for [LiveKit Cloud](https://cloud.livekit.io/), then copy `.env.example` to `.env.local` and fill it in. To have the CLI write your project's URL and API keys into the file instead, run:
-
-```console
 lk cloud auth
 lk app env --write --destination .env.local
 ```
 
-</details>
+`lk agent simulate` runs against the CLI's default project, not the one in `.env.local`. Check it with `lk project list`, and switch with `lk project set-default <name>` or pass `--project <name>`.
 
-## Run the agent
+Front Desk uses [LiveKit Inference](https://docs.livekit.io/agents/models/inference/) for every model (Deepgram Nova 3, Gemma 4 31B, Inworld TTS 2), so it needs no other API keys. Set `CAL_API_KEY` to book into a real cal.com calendar. Without it, Front Desk uses an in-memory calendar with a few random openings each weekday.
 
-The `lk agent console`, `lk agent dev`, and `lk agent debugger` commands run your agent on your own machine. To talk to it in your terminal:
+## Talk to Front Desk
+
+In your terminal:
 
 ```console
 lk agent console
 ```
 
-To connect it to LiveKit Cloud so a frontend, a phone call, or the [Agent Console](https://docs.livekit.io/testing/agent-console/) can reach it:
+Connected to LiveKit Cloud, so the [Agent Console](https://docs.livekit.io/testing/agent-console/), a frontend, or a phone number can reach it:
 
 ```console
 lk agent dev
 ```
 
-To let a coding agent or a script test it one text turn at a time, use the [agent debugger](https://docs.livekit.io/testing/debugger/). Each turn prints the agent's reply along with the tool calls and handoffs behind it:
+One text turn at a time, with every tool call printed:
 
 ```console
 lk agent debugger start
-lk agent debugger say "Hi, what can you do?"
+lk agent debugger say "Can I come in next Tuesday afternoon?"
 lk agent debugger stop
 ```
 
-In production, run the agent directly:
+## The tour
 
-```console
-uv run src/agent.py start
+### 1. A scenario is a caller and an outcome
+
+Each scenario in [`scenarios.yaml`](scenarios.yaml) has three parts:
+
+```yaml
+- label: Requested time unavailable, accepts an alternative
+  instructions: |-          # the caller: who's calling and what they want
+    You are Priya Nair, a nurse coming off a night shift...
+    - Ask for an appointment on Monday, June 15 in the morning, around 9 AM.
+    - When told mornings are not available, push back once...
+  agent_expectations: ...   # the outcome: what the judge grades
+    The agent must clearly say the requested morning time is not available,
+    without inventing a slot...
+  userdata:                 # the end state: the data the agent sees and the booking that must exist
+    available_slots:
+      - "2026-06-15T14:00:00"
+      - "2026-06-15T16:30:00"
+    expected_booking: "2026-06-15T14:00:00"
 ```
 
-## Frontends and telephony
+`userdata` is what makes a run repeatable. Front Desk reads it through one branch at the top of its entrypoint. Production never takes that branch:
 
-Pair the agent with a prebuilt frontend starter, or add telephony:
+```python
+if sim := ctx.simulation_context():
+    # seeded from the scenario's available_slots
+    cal = simulation.fake_calendar(sim, timezone=TIMEZONE)
+    tool_mocks = simulation.tool_mocks(cal, ZoneInfo(TIMEZONE))
+...
+mock_tools(FrontDeskAgent, tool_mocks, session=session)
+```
 
-| Platform | Link | Description |
-|----------|----------|-------------|
-| **Web** | [`livekit-examples/agent-starter-react`](https://github.com/livekit-examples/agent-starter-react) | Web voice AI assistant with React & Next.js |
-| **iOS/macOS** | [`livekit-examples/agent-starter-swift`](https://github.com/livekit-examples/agent-starter-swift) | Native iOS, macOS, and visionOS voice AI assistant |
-| **Flutter** | [`livekit-examples/agent-starter-flutter`](https://github.com/livekit-examples/agent-starter-flutter) | Cross-platform voice AI assistant app |
-| **React Native** | [`livekit-examples/voice-assistant-react-native`](https://github.com/livekit-examples/voice-assistant-react-native) | Native mobile app with React Native & Expo |
-| **Android** | [`livekit-examples/agent-starter-android`](https://github.com/livekit-examples/agent-starter-android) | Native Android app with Kotlin & Jetpack Compose |
-| **Web Embed** | [`livekit-examples/agent-starter-embed`](https://github.com/livekit-examples/agent-starter-embed) | Voice AI widget for any website |
-| **Telephony** | [Documentation](https://docs.livekit.io/telephony/) | Add inbound or outbound calling to your agent |
+- **Seeded data.** [`simulation.fake_calendar`](src/simulation.py) builds a calendar holding exactly the scenario's `available_slots`, on a clock pinned to `2026-06-12T09:00` (a Friday). Dates are absolute, so the scenarios grade the same way next year.
+- **Mocked tools.** The LLM still sees Front Desk's real tool schemas and still chooses which to call. Only execution is swapped. The mocks share the seeded calendar, so a booking removes that slot from the next listing.
+- **End-state check.** The judge reads the transcript. `on_simulation_end` in [`src/agent.py`](src/agent.py) reads the calendar. If `expected_booking` names a slot, exactly that booking must exist, and if it's `null`, nothing may be booked. A mismatch fails the run even when the judge passed it, which catches an agent that says "you're all set" without booking anything.
 
-For more options, see the [frontend guide](https://docs.livekit.io/frontends/).
+Scenarios without `expected_booking` are graded on the conversation alone. A scenario without `available_slots`, such as one freshly downloaded from the dashboard, gets a default calendar with two weeks of openings, the same on every run.
 
-## Testing and debugging
+### 2. Generate scenarios from code
 
-Simulations run full multi-turn conversations between a simulated user and your agent on LiveKit Cloud, then judge each transcript. The scenarios live in [`scenarios.yaml`](scenarios.yaml). Run them locally with the CLI:
+On day one you don't need a scenario file. The CLI can read the agent's source and write a first set:
+
+```console
+lk agent simulate text -n 10
+```
+
+This uploads the agent's source to LiveKit Cloud so the generator can read it, and the CLI asks before it does. When the run ends, press `s` to save the scenarios. Generated scenarios are a starting point: read each one, cut what doesn't matter, and sharpen vague expectations before you commit them.
+
+### 3. Run the committed set
 
 ```console
 lk agent simulate text --scenarios scenarios.yaml
 ```
 
-The `Simulations` workflow in [`.github/workflows/simulations.yml`](.github/workflows/simulations.yml) runs the same file on every merge to `main`, and on demand from the Actions tab. It doesn't run on every pull request push because each run uses real inference. See the [simulations guide](https://docs.livekit.io/testing/simulations/) for how to write scenarios and read results.
+The CLI starts Front Desk as a local worker, runs every scenario on LiveKit Cloud, prints a verdict and the judge's notes for each, and links to the run in the dashboard. Both the simulated caller and the judge are LLMs, so CI runs each scenario three times and requires two passes:
 
-To check a change turn by turn without a live session, use the [agent debugger](https://docs.livekit.io/testing/debugger/) shown in [Run the agent](#run-the-agent).
+```console
+lk agent simulate text --scenarios scenarios.yaml --samples 3 --concurrency 5
+```
 
-To debug a running agent, open it in the [Agent Console](https://docs.livekit.io/testing/agent-console/). It shows events, tool calls, and model timing as you talk to the agent. To stream logs from a deployed agent, run `lk agent logs`.
+### 4. When you see a bad call, make it a test
 
-## Using this template for your own project
+The most valuable scenarios come from real calls. In the dashboard, open the call under **Sessions** and click **Turn into a test**. The dashboard derives a simulated caller and pass criteria from the call, and you download them as a scenario file.
 
-After you create your own project from this template:
+A downloaded scenario describes one call. Before you commit it, widen it to the class of calls it represents and sharpen its expectation into the rule you want enforced. If the agent's behavior depends on data, add `userdata` so the run sees the same calendar the caller did, and an `expected_booking` so the end state is graded too. Run it, fix the agent until it passes, and add it to `scenarios.yaml` so the bug can't come back.
 
-- **Commit `uv.lock`.** The template doesn't track it, but your project should, for reproducible builds. If you deploy to LiveKit Cloud, commit `livekit.toml` too.
-- **Add repository secrets.** Add `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` as [repository secrets](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-what-your-workflow-does/using-secrets-in-github-actions) so the simulations can run in CI.
+The tour's bad call is a caller who pushes back on a full Monday morning until the agent invents a slot that doesn't exist. "Requested time unavailable, accepts an alternative" in `scenarios.yaml` covers exactly that.
 
-## Deploying to production
+### 5. Audio and phone simulations
 
-To deploy the agent to LiveKit Cloud or another environment with the included `Dockerfile`, see the [deployment guide](https://docs.livekit.io/deploy/agents/).
+Text runs tell you whether the agent made the right decisions. Audio runs tell you how it sounded: the simulated caller speaks, listens and interrupts, and the run measures the latency the caller heard, talk-overs and long silences, how the agent handled barge-ins, and whether it heard names, numbers and email addresses correctly.
 
-## Self-hosted LiveKit
+```console
+lk agent simulate audio --scenarios scenarios.yaml
+lk agent simulate audio --scenarios scenarios.yaml --background-noise --packet-loss --low-quality-microphone
+```
 
-You can self-host LiveKit instead of using LiveKit Cloud. See the [self-hosting guide](https://docs.livekit.io/transport/self-hosting/local/). If you self-host, use [model plugins](https://docs.livekit.io/agents/models/#plugins) instead of LiveKit Inference, and remove the [LiveKit Cloud noise cancellation](https://docs.livekit.io/transport/media/noise-cancellation/) plugin.
+A phone simulation dials Front Desk's real number and talks to the deployed agent over the same SIP path a caller takes:
+
+```console
+lk agent simulate audio --scenarios phone.yaml --to +1XXXXXXXXXX --from +1XXXXXXXXXX --trunk ST_xxxx
+```
+
+A phone run reaches production, so there's no seeded calendar and no mocked tools. That's why [`phone.yaml`](phone.yaml) accepts any offered time and is graded on the conversation alone. To rehearse it without dialing, run `lk agent simulate audio --scenarios phone.yaml` against your local agent. It needs a phone number routed to the deployed agent (see [Deploy](#deploy)) and an outbound trunk with a caller ID on it.
+
+### 6. Run it in CI
+
+| Workflow | When | Runs |
+| --- | --- | --- |
+| [`simulations.yml`](.github/workflows/simulations.yml) | Every pull request and merge to `main` | `lk agent simulate text --scenarios scenarios.yaml --samples 3 --concurrency 5` |
+| [`simulations-audio.yml`](.github/workflows/simulations-audio.yml) | Nightly at 06:00 UTC, and on demand | `lk agent simulate audio --scenarios scenarios.yaml --concurrency 5` |
+| [`ruff.yml`](.github/workflows/ruff.yml) | Every pull request and merge to `main` | `ruff check` and `ruff format --check` |
+
+Text mode is cheap enough for every change, and its LLM requests yield to live traffic on the project. Audio runs in real time and calls STT and TTS on every turn, so it runs on a schedule. The CLI exits non-zero when a scenario fails, so a regression fails the check before it merges. Add `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` as repository secrets.
+
+### 7. Read a failure
+
+Every run, from a laptop or from CI, shows up under **Simulations** in the dashboard with a score, the issues the judge found, and each scenario's transcript. From the terminal:
+
+```console
+lk agent simulate list
+lk agent simulate view <run-id>
+lk agent simulate export <run-id> > run.json
+```
+
+When a scenario fails, decide whether the agent is wrong (fix the agent), the scenario is wrong or vague (fix the expectation), or the simulated world differs from production (fix the seeded data). After a fix, rerun the whole file, not just the scenario you were working on.
+
+## Unit tests
+
+Simulations grade whole conversations. Unit tests pin single turns, such as "asking for tomorrow calls `list_available_slots` and offers only tomorrow's times", and finish in seconds:
+
+```console
+uv run pytest
+```
+
+## Deploy
+
+```console
+lk agent create
+```
+
+This builds the [`Dockerfile`](Dockerfile), deploys Front Desk to LiveKit Cloud, and writes the agent's ID into `livekit.toml`. Front Desk registers as `front-desk`, so it joins only rooms it's explicitly dispatched to. To give it a phone number, [create an inbound trunk and a dispatch rule](https://docs.livekit.io/telephony/) that dispatches `front-desk` to each call. Stream logs with `lk agent logs`.
+
+Every real session is scored by a group of built-in judges in `on_session_end` and tagged `lk.success` when an appointment was booked, so bad calls stand out in Agent Observability.
+
+## How this differs from the upstream example
+
+Front Desk began as [`examples/frontdesk`](https://github.com/livekit/agents/tree/main/examples/frontdesk) in `livekit/agents`. This version differs in four ways:
+
+- **One appointment per call.** If the caller changes their mind after a time is booked, booking the new time moves the appointment instead of adding a second one. Without this, "Change of mind before confirming" failed 2 of 3 samples: the caller switched times while giving their email, and both slots were booked.
+- **The LiveKit turn detector and noise cancellation** are on, for more natural turn-taking on calls and in audio simulations.
+- **It registers as `front-desk`** for explicit dispatch.
+- **The LiveKit Playground card is removed.**
+
+## Learn more
+
+- [Agent Simulations](https://docs.livekit.io/testing/simulations/)
+- [Run simulations in CI](https://docs.livekit.io/testing/simulations/ci/)
+- [Agent Observability](https://docs.livekit.io/testing/observability/)
+- [Agent debugger](https://docs.livekit.io/testing/debugger/)
+- [Workflows: tasks and handoffs](https://docs.livekit.io/agents/logic/workflows/)
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).

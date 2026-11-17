@@ -31,3 +31,6 @@ KMS
 
 # GitHub CLI
 .github/personal-instructions.md
+
+# Points the CLI at your own LiveKit Cloud project; written by `lk agent create`.
+livekit.toml
